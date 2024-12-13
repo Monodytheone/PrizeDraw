@@ -1,0 +1,6 @@
+@PrizeDraw_HostAddress = http://localhost:5087
+
+GET {{PrizeDraw_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
