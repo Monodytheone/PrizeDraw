@@ -1,9 +1,12 @@
 ﻿using FluentValidation;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.SignalR;
 using NPOI.SS.UserModel;
 using NPOI.XSSF.UserModel;
 using PrizeDraw.Dto.Request;
+using PrizeDraw.Dto.Response;
 using PrizeDraw.Entities;
+using PrizeDraw.Services;
 using SqlSugar;
 
 namespace PrizeDraw.Controllers;
@@ -16,13 +19,20 @@ namespace PrizeDraw.Controllers;
 public class SetDataController : ControllerBase
 {
     private readonly ISqlSugarClient _db;
+    private readonly IHubContext<PublicHub> _publicHubContext;
+    private readonly PrizeListPageService _prizeListPageService;
+
 
     private readonly IValidator<SetRafflePrizeDto> _setRafflePrizeValidator;
+    private readonly IValidator<AddBonusPrizeDto> _addBonusPrizeValidator;
 
-    public SetDataController(ISqlSugarClient db, IValidator<SetRafflePrizeDto> setRafflePrizeValidator)
+    public SetDataController(ISqlSugarClient db, IValidator<SetRafflePrizeDto> setRafflePrizeValidator, IValidator<AddBonusPrizeDto> addBonusPrizeValidator, IHubContext<PublicHub> publicHubContext, PrizeListPageService prizeListPageService)
     {
         _db = db;
         _setRafflePrizeValidator = setRafflePrizeValidator;
+        _addBonusPrizeValidator = addBonusPrizeValidator;
+        _publicHubContext = publicHubContext;
+        _prizeListPageService = prizeListPageService;
     }
 
     /// <summary>
@@ -59,6 +69,51 @@ public class SetDataController : ControllerBase
 
         return rafflePrizes;
     }
+
+    /// <summary>
+    /// 临时加奖
+    /// </summary>
+    [HttpPost]
+    public async Task<ActionResult<List<RafflePrizeEntity>>> AddBonusPrize(AddBonusPrizeDto input)
+    {
+        var validationResult = _addBonusPrizeValidator.Validate(input);
+        if (validationResult.IsValid == false)
+        {
+            return BadRequest(string.Join(' ', validationResult.Errors.Select(error => error.ErrorMessage)));
+        }
+
+        SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
+        if (statusEntity.SysStatus != SysStatus.Started && statusEntity.SysStatus != SysStatus.Finished)
+        {
+            return BadRequest($"当前系统状态为 '{statusEntity.SysStatus}'，不得临时加奖");
+        }
+
+        RafflePrizeEntity bonusPrize = new()
+        {
+            Id = SnowFlakeSingle.Instance.NextId().ToString(),
+            PrizeName = input.PrizeName,
+            Quantity = input.Quantity,
+            PrizeAmount = input.PrizeAmount,
+            DrawnCount = 0,
+            DrawsLeft = input.Quantity,
+        };
+        await _db.Insertable(bonusPrize).ExecuteCommandAsync();
+
+        if (statusEntity.SysStatus == SysStatus.Finished)
+        {
+            statusEntity.SysStatus = SysStatus.Started;
+            await _db.Updateable(statusEntity).ExecuteCommandAsync();
+        }
+
+        // 推送SignalR消息
+        PrizeListPageDataDto prizeListPageData = await _prizeListPageService.GetPrizeListPageDataAsync();
+        await _publicHubContext.Clients.All.SendAsync("Start", prizeListPageData);
+
+        // 返回最新的奖项列表
+        List<RafflePrizeEntity> rafflePrizeList = await _db.Queryable<RafflePrizeEntity>().ToListAsync();
+        return rafflePrizeList;
+    }
+
 
     /// <summary>
     /// 上传员工信息
