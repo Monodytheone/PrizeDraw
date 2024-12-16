@@ -34,8 +34,8 @@ builder.Services.AddSwaggerGen();
 // 跨域
 var policyName = "CorsPolicy";
 //string[] corsUrls = ["http://localhost:3001"];
-string[] corsUrls = builder.Configuration.GetSection("CorsUrls").Get<string[]>()
-    ?? throw new Exception("配置中没有CorsUrls");
+//string[] corsUrls = builder.Configuration.GetSection("CorsUrls").Get<string[]>()
+    //?? throw new Exception("配置中没有CorsUrls");
 builder.Services.AddCors(options =>
 {
     options.AddPolicy(policyName,builder =>
@@ -45,9 +45,9 @@ builder.Services.AddCors(options =>
             //.WithOrigins(corsUrls)
             .SetIsOriginAllowed(_ => true)
             //.SetPreflightMaxAge(TimeSpan.FromSeconds(2520))
-            //.AllowAnyOrigin()
+            .AllowAnyOrigin()
             .AllowAnyHeader()
-            //.AllowCredentials() // 必须允许凭据传递
+            //.AllowCredentials() // 必须允许凭据传递（否则SingalR协商请求会跨域）
             .AllowAnyMethod();
     });
 });
