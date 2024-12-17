@@ -10,6 +10,11 @@ public class SysStatusDto
     public SysStatus SysStatus { get; set; }
 
     /// <summary>
+    /// 是否隐藏员工信息
+    /// </summary>
+    public bool HideEmployeeInfo { get; set; }
+
+    /// <summary>
     /// 数据设置页面的数据
     /// </summary>
     public SysStatusDto_NotStart_1? NotStart_1 { get; set; }

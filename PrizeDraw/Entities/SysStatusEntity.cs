@@ -9,6 +9,8 @@ public class SysStatusEntity
     public string Id { get; init; }
 
     public SysStatus SysStatus { get; set; }
+
+    public bool HideEmployeeInfo { get; set; }
 }
 
 public enum SysStatus
