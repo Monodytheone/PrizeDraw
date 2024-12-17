@@ -15,6 +15,11 @@ public class SysStatusDto
     public bool HideEmployeeInfo { get; set; }
 
     /// <summary>
+    /// 公证人
+    /// </summary>
+    public string? Notary { get; set; }
+
+    /// <summary>
     /// 数据设置页面的数据
     /// </summary>
     public SysStatusDto_NotStart_1? NotStart_1 { get; set; }

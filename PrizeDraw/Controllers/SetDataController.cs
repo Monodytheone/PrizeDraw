@@ -206,4 +206,28 @@ public class SetDataController : ControllerBase
 
         return Ok(employeeList);
     }
+
+    /// <summary>
+    /// 设置公证人
+    /// </summary>
+    /// <param name="notary">公证人</param>
+    [HttpPost]
+    public async Task<ActionResult> SetNotary(string notary)
+    {
+        if (string.IsNullOrWhiteSpace(notary))
+        {
+            return BadRequest("请输入公证人");
+        }
+
+        SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
+        if(statusEntity.SysStatus != SysStatus.NotStart)
+        {
+            return BadRequest("抽奖已开始，不得变更公证人");
+        }
+
+        statusEntity.Notary = notary;
+        await _db.Updateable(statusEntity).ExecuteCommandAsync();
+
+        return Ok();
+    }
 }

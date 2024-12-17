@@ -11,6 +11,12 @@ public class SysStatusEntity
     public SysStatus SysStatus { get; set; }
 
     public bool HideEmployeeInfo { get; set; }
+
+    /// <summary>
+    /// 公证人
+    /// </summary>
+    [SugarColumn(IsNullable = true)]
+    public string? Notary { get; set; }
 }
 
 public enum SysStatus
