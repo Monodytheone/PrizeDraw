@@ -34,7 +34,9 @@ public class SysStatusController : ControllerBase
     [HttpGet]
     public async Task<ActionResult<SysStatusDto>> Get()
     {
-        SysStatus sysStatus = (await _db.Queryable<SysStatusEntity>().SingleAsync()).SysStatus;
+        SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
+        SysStatus sysStatus = statusEntity.SysStatus;
+        bool hideEmployeeInfo = statusEntity.HideEmployeeInfo;
 
         if (sysStatus == SysStatus.NotStart)
         {
@@ -43,6 +45,8 @@ public class SysStatusController : ControllerBase
             SysStatusDto res = new()
             {
                 SysStatus = sysStatus,
+                HideEmployeeInfo = hideEmployeeInfo,
+                Notary = statusEntity.Notary,
                 NotStart_1 = new SysStatusDto_NotStart_1
                 {
                     RafflePrizes = rafflePrizes,
@@ -57,6 +61,8 @@ public class SysStatusController : ControllerBase
             SysStatusDto res = new()
             {
                 SysStatus = sysStatus,
+                HideEmployeeInfo = hideEmployeeInfo,
+                Notary = statusEntity.Notary,
                 Started_2_5 = prizeListPageData
             };
             return Ok(res);
@@ -69,6 +75,8 @@ public class SysStatusController : ControllerBase
             SysStatusDto res = new()
             {
                 SysStatus = sysStatus,
+                HideEmployeeInfo = hideEmployeeInfo,
+                Notary = statusEntity.Notary,
                 Rolling_3 = new RollingPageDataDto
                 {
                     RollingEmployees = rollingEmployees,
@@ -92,6 +100,8 @@ public class SysStatusController : ControllerBase
             SysStatusDto res = new()
             {
                 SysStatus = sysStatus,
+                Notary = statusEntity.Notary,
+                HideEmployeeInfo = hideEmployeeInfo,
                 StopRoll_4 = rollStopPageData
             };
             return Ok(res);
@@ -130,15 +140,17 @@ public class SysStatusController : ControllerBase
         {
             return BadRequest($"系统状态为{statusEntity.SysStatus}，不得Start");
         }
-
         if (await _db.Queryable<RafflePrizeEntity>().CountAsync() == 0)
         {
             return BadRequest("未设置奖项");
         }
-
         if (await _db.Queryable<EmployeeEntity>().CountAsync() == 0)
         {
             return BadRequest("未导入员工列表");
+        }
+        if (string.IsNullOrWhiteSpace(statusEntity.Notary))
+        {
+            return BadRequest("未设置公证人");
         }
 
         statusEntity.SysStatus = SysStatus.Started;
@@ -316,14 +328,12 @@ public class SysStatusController : ControllerBase
         await _db.Deleteable<CurrentWinner>().ExecuteCommandAsync();
         await _db.Deleteable<RollingRafflePrize>().ExecuteCommandAsync();
 
-
-
-        PrizeListPageDataDto prizeListPageData = await _prizeListPageService.GetPrizeListPageDataAsync();
-
         // 更改系统状态
         bool hasFinished = await _db.Queryable<RafflePrizeEntity>().Where(r => r.DrawsLeft > 0).CountAsync() == 0;
         statusEntity.SysStatus = hasFinished ? SysStatus.Finished : SysStatus.Started;
         await _db.Updateable(statusEntity).ExecuteCommandAsync();
+
+        PrizeListPageDataDto prizeListPageData = await _prizeListPageService.GetPrizeListPageDataAsync();
 
         // 推送消息
         string messageMethod = hasFinished ? "Finish" : "BackToPrizeListPage";
@@ -351,9 +361,27 @@ public class SysStatusController : ControllerBase
 
         SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
         statusEntity.SysStatus = SysStatus.NotStart;
+        statusEntity.HideEmployeeInfo = false;
+        statusEntity.Notary = null;
         await _db.Updateable(statusEntity).ExecuteCommandAsync();
 
         await _publicHubContext.Clients.All.SendAsync("SystemReset");
+
+        return Ok();
+    }
+
+    /// <summary>
+    /// 显示/隐藏员工信息
+    /// </summary>
+    [HttpPost]
+    public async Task<ActionResult> ChangeHideEmployeeInfoStatus(bool hideEmployeeInfo)
+    {
+        SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
+
+        statusEntity.HideEmployeeInfo = hideEmployeeInfo;
+        await _db.Updateable(statusEntity).ExecuteCommandAsync();
+
+        await _publicHubContext.Clients.All.SendAsync("ChangeHideEmployeeInfoStatus", hideEmployeeInfo);
 
         return Ok();
     }

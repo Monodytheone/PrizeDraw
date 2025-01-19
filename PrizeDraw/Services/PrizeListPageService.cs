@@ -29,8 +29,12 @@ public class PrizeListPageService
             Amount = prizeRecords.Where(r => r.WinnerDepartment == d).Sum(r => r.PrizeAmount)
         }).ToList();
 
+        SysStatusEntity statusEntity = await _db.Queryable<SysStatusEntity>().SingleAsync();
+
         return new PrizeListPageDataDto
         {
+            SysStatus = statusEntity.SysStatus,
+            Notary = statusEntity.Notary,
             RafflePrizes = rafflePrizes,
             PrizeRecords = prizeRecords,
             WinningAmountByDepartment = winningAmountByDepartments,

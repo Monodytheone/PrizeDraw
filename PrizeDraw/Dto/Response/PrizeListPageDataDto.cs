@@ -7,6 +7,13 @@ namespace PrizeDraw.Dto.Response;
 /// </summary>
 public class PrizeListPageDataDto
 {
+    public SysStatus SysStatus { get; set; }
+
+    /// <summary>
+    /// 公证人
+    /// </summary>
+    public string Notary { get; set; }
+
     /// <summary>
     /// 奖项列表
     /// </summary>
